@@ -61,6 +61,7 @@ class CameraViewModelTest {
             locationRepository = location,
             geocodingRepository = geocoder,
             headingRepository = FakeHeadingRepository(),
+            mapSnapshotRepository = FakeMapSnapshotRepository(),
             settingsRepository = settings,
             photoProcessor = processor,
             photoRepository = photos,

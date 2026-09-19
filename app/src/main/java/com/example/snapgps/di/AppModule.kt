@@ -7,6 +7,7 @@ import com.example.snapgps.data.local.settingsDataStore
 import com.example.snapgps.data.location.AndroidGeocodingRepository
 import com.example.snapgps.data.location.HeadingSensorDataSource
 import com.example.snapgps.data.location.LocationRepositoryImpl
+import com.example.snapgps.data.map.OsmMapSnapshotRepository
 import com.example.snapgps.data.media.ExifWriter
 import com.example.snapgps.data.media.ImageProcessor
 import com.example.snapgps.data.media.MediaStoreManager
@@ -18,6 +19,7 @@ import com.example.snapgps.domain.repository.CameraRepository
 import com.example.snapgps.domain.repository.GeocodingRepository
 import com.example.snapgps.domain.repository.HeadingRepository
 import com.example.snapgps.domain.repository.LocationRepository
+import com.example.snapgps.domain.repository.MapSnapshotRepository
 import com.example.snapgps.domain.repository.PhotoProcessor
 import com.example.snapgps.domain.repository.PhotoRepository
 import com.example.snapgps.domain.repository.SettingsRepository
@@ -47,6 +49,7 @@ val dataModule = module {
     singleOf(::LocationRepositoryImpl) bind LocationRepository::class
     singleOf(::AndroidGeocodingRepository) bind GeocodingRepository::class
     singleOf(::HeadingSensorDataSource) bind HeadingRepository::class
+    singleOf(::OsmMapSnapshotRepository) bind MapSnapshotRepository::class
 
     // Photo pipeline
     singleOf(::OverlayBitmapRenderer)

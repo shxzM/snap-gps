@@ -11,4 +11,7 @@ object OverlayLayout {
     const val PADDING_TO_TEXT = 0.6f
     const val CORNER_TO_TEXT = 0.5f
     const val LINE_SPACING = 1.1f
+    /** Side of the square map thumbnail, relative to the short edge. */
+    const val MAP_SIZE_RATIO = 0.22f
+    const val MAP_CORNER_TO_TEXT = 0.3f
 }

@@ -1,5 +1,6 @@
 package com.example.snapgps.presentation.camera
 
+import android.graphics.Bitmap
 import android.util.Log
 import androidx.camera.core.SurfaceRequest
 import androidx.lifecycle.LifecycleOwner
@@ -25,6 +26,7 @@ import com.example.snapgps.domain.repository.CameraRepository
 import com.example.snapgps.domain.repository.GeocodingRepository
 import com.example.snapgps.domain.repository.HeadingRepository
 import com.example.snapgps.domain.repository.LocationRepository
+import com.example.snapgps.domain.repository.MapSnapshotRepository
 import com.example.snapgps.domain.repository.PhotoProcessor
 import com.example.snapgps.domain.repository.PhotoRepository
 import com.example.snapgps.domain.repository.SettingsRepository
@@ -66,6 +68,7 @@ class CameraViewModel(
     private val locationRepository: LocationRepository,
     private val geocodingRepository: GeocodingRepository,
     private val headingRepository: HeadingRepository,
+    private val mapSnapshotRepository: MapSnapshotRepository,
     private val settingsRepository: SettingsRepository,
     private val photoProcessor: PhotoProcessor,
     private val photoRepository: PhotoRepository,
@@ -129,6 +132,12 @@ class CameraViewModel(
         .flatMapLatest { enabled -> if (enabled) headingUpdates() else flowOf(null) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
 
+    private val mapSnapshot: StateFlow<Bitmap?> = settings
+        .map { it.stampLocationOnPhoto && it.overlay.showMap }
+        .distinctUntilChanged()
+        .flatMapLatest { enabled -> if (enabled) mapUpdates() else flowOf(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
+
     /** Drives the clock on the overlay and re-evaluates staleness when fixes stop arriving. */
     private val ticker: Flow<Long> = flow {
         while (true) {
@@ -164,10 +173,16 @@ class CameraViewModel(
     ) { c, z, f, p -> CameraSnapshot(c, z, f, p) }
 
     val uiState: StateFlow<CameraUiState> =
-        combine(permissions, settings, locationSnapshot, cameraSnapshot, ::buildState)
+        combine(permissions, settings, locationSnapshot, cameraSnapshot, mapSnapshot, ::buildState)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), CameraUiState())
 
-    private fun buildState(p: Permissions, s: AppSettings, l: LocationSnapshot, c: CameraSnapshot): CameraUiState {
+    private fun buildState(
+        p: Permissions,
+        s: AppSettings,
+        l: LocationSnapshot,
+        c: CameraSnapshot,
+        map: Bitmap?
+    ): CameraUiState {
         val quality = evaluate(l.location, l.nowMs, s)
         val status = LocationEvaluator.status(p.location, l.enabled, l.location, quality)
         val showable = quality == LocationQuality.USABLE || quality == LocationQuality.LOW_ACCURACY
@@ -194,6 +209,8 @@ class CameraViewModel(
             zoom = c.zoom,
             overlayLines = OverlayContentBuilder.build(metadata, s),
             overlayConfig = s.overlay,
+            // Hidden with the coordinates when the fix goes stale, as it would be on the photo.
+            overlayMap = if (showable) map else null,
             distanceUnit = s.distanceUnit,
             lastPhoto = c.lastPhoto,
             cameraBindAttempt = c.controls.cameraBindAttempt
@@ -354,29 +371,53 @@ class CameraViewModel(
 
     // ---- Helpers ---------------------------------------------------------------------------
 
+    /** Throttled reverse geocoding; see [locationThrottled]. */
+    private fun addressUpdates(): Flow<String?> =
+        locationThrottled(GEOCODE_MIN_DISTANCE_M, GEOCODE_MIN_INTERVAL_MS, GEOCODE_RETRY_MS) { loc ->
+            geocodingRepository.getAddress(loc.latitude, loc.longitude)
+        }
+
+    /** Map thumbnail for the viewfinder; re-rendered as the user moves so the pin stays put. */
+    private fun mapUpdates(): Flow<Bitmap?> =
+        locationThrottled(MAP_MIN_DISTANCE_M, MAP_MIN_INTERVAL_MS, MAP_RETRY_MS) { loc ->
+            try {
+                mapSnapshotRepository.snapshot(loc.latitude, loc.longitude)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Map thumbnail failed", e)
+                null
+            }
+        }
+
     /**
-     * Throttled reverse geocoding. Runs as a loop over the *latest* fix rather than reacting to
-     * each fix: fixes arrive every second, so per-fix cancellation would starve the lookup. A lookup
-     * that is due too soon is postponed (never dropped), and failed lookups are retried, so the
-     * address always converges on the current position.
+     * Runs [fetch] as a loop over the *latest* fix rather than reacting to each fix: fixes arrive
+     * every second, so per-fix cancellation would starve a slow lookup. A lookup that is due too
+     * soon is postponed (never dropped), and failed (null) lookups are retried after [retryMs], so
+     * the result always converges on the current position.
      */
-    private fun addressUpdates(): Flow<String?> = channelFlow {
+    private fun <T : Any> locationThrottled(
+        minDistanceM: Double,
+        minIntervalMs: Long,
+        retryMs: Long,
+        fetch: suspend (GpsLocation) -> T?
+    ): Flow<T?> = channelFlow {
         send(null)
         val latest = location.filterNotNull().stateIn(this)
         var attemptedAt: GpsLocation? = null
         var attemptedAtMs = 0L
-        var current: String? = null
+        var current: T? = null
         while (true) {
             val loc = latest.value
             val last = attemptedAt
             val needsLookup = last == null || current == null ||
-                GeoMath.distanceMeters(last.latitude, last.longitude, loc.latitude, loc.longitude) > GEOCODE_MIN_DISTANCE_M
+                GeoMath.distanceMeters(last.latitude, last.longitude, loc.latitude, loc.longitude) > minDistanceM
             if (!needsLookup) {
                 latest.first { it != loc }
                 continue
             }
             if (last != null) {
-                val interval = if (current == null) GEOCODE_RETRY_MS else GEOCODE_MIN_INTERVAL_MS
+                val interval = if (current == null) retryMs else minIntervalMs
                 val wait = attemptedAtMs + interval - clock.nowMs()
                 if (wait > 0) {
                     delay(wait)
@@ -385,7 +426,7 @@ class CameraViewModel(
             }
             attemptedAt = loc
             attemptedAtMs = clock.nowMs()
-            current = geocodingRepository.getAddress(loc.latitude, loc.longitude)
+            current = fetch(loc)
             send(current)
         }
     }
@@ -438,5 +479,8 @@ class CameraViewModel(
         const val GEOCODE_RETRY_MS = 30_000L
         const val GEOCODE_MIN_INTERVAL_MS = 10_000L
         const val GEOCODE_MIN_DISTANCE_M = 50.0
+        const val MAP_RETRY_MS = 15_000L
+        const val MAP_MIN_INTERVAL_MS = 3_000L
+        const val MAP_MIN_DISTANCE_M = 10.0
     }
 }

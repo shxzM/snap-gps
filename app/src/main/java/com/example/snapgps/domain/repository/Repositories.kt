@@ -1,6 +1,7 @@
 package com.example.snapgps.domain.repository
 
 import android.content.IntentSender
+import android.graphics.Bitmap
 import androidx.camera.core.SurfaceRequest
 import androidx.lifecycle.LifecycleOwner
 import com.example.snapgps.domain.model.AppSettings
@@ -49,6 +50,14 @@ interface LocationRepository {
 
 interface GeocodingRepository {
     suspend fun getAddress(latitude: Double, longitude: Double): String?
+}
+
+interface MapSnapshotRepository {
+    /**
+     * A square map centred on the coordinate with a pin on it, or null when the map tiles are
+     * unavailable (e.g. offline with nothing cached). Each call returns a new bitmap the caller owns.
+     */
+    suspend fun snapshot(latitude: Double, longitude: Double): Bitmap?
 }
 
 interface HeadingRepository {

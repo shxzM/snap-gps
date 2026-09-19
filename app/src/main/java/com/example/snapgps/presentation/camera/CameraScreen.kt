@@ -51,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -244,7 +245,8 @@ fun CameraScreen(
                         onZoomBy = onZoomBy,
                         modifier = Modifier.fillMaxSize()
                     )
-                    LocationOverlay(state.overlayLines, state.overlayConfig)
+                    val overlayMap = remember(state.overlayMap) { state.overlayMap?.asImageBitmap() }
+                    LocationOverlay(state.overlayLines, state.overlayConfig, map = overlayMap)
                     if (state.zoom.ratio > 1.01f) {
                         ZoomBadge(
                             state.zoom.ratio,

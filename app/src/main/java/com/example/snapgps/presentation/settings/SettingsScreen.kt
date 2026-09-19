@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -117,6 +118,11 @@ fun SettingsScreen(
             item { OverlayPreview(state) }
             item { SwitchRow("Coordinates", o.showCoordinates) { v -> onUpdateOverlay { it.copy(showCoordinates = v) } } }
             item { SwitchRow("Address", o.showAddress, "Needs internet; skipped when offline") { v -> onUpdateOverlay { it.copy(showAddress = v) } } }
+            item {
+                SwitchRow("Map", o.showMap, "Small map with a pin; needs internet (© OpenStreetMap)") { v ->
+                    onUpdateOverlay { it.copy(showMap = v) }
+                }
+            }
             item { SwitchRow("Date", o.showDate) { v -> onUpdateOverlay { it.copy(showDate = v) } } }
             item { SwitchRow("Time", o.showTime) { v -> onUpdateOverlay { it.copy(showTime = v) } } }
             item { SwitchRow("Altitude", o.showAltitude) { v -> onUpdateOverlay { it.copy(showAltitude = v) } } }
@@ -255,7 +261,8 @@ private fun OverlayPreview(state: SettingsState) {
             )
             .testTag("overlay_preview")
     ) {
-        LocationOverlay(state.previewLines, state.settings.overlay)
+        val map = remember(state.previewMap) { state.previewMap?.asImageBitmap() }
+        LocationOverlay(state.previewLines, state.settings.overlay, map = map)
     }
 }
 

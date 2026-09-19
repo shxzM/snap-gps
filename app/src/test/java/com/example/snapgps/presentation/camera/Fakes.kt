@@ -1,5 +1,6 @@
 package com.example.snapgps.presentation.camera
 
+import android.graphics.Bitmap
 import androidx.camera.core.SurfaceRequest
 import androidx.lifecycle.LifecycleOwner
 import com.example.snapgps.domain.model.AppSettings
@@ -14,6 +15,7 @@ import com.example.snapgps.domain.repository.DeleteResult
 import com.example.snapgps.domain.repository.GeocodingRepository
 import com.example.snapgps.domain.repository.HeadingRepository
 import com.example.snapgps.domain.repository.LocationRepository
+import com.example.snapgps.domain.repository.MapSnapshotRepository
 import com.example.snapgps.domain.repository.PhotoProcessor
 import com.example.snapgps.domain.repository.PhotoRepository
 import com.example.snapgps.domain.repository.SettingsRepository
@@ -80,6 +82,15 @@ class FakeGeocodingRepository(
 class FakeHeadingRepository : HeadingRepository {
     override fun headingUpdates(): Flow<Float> = emptyFlow()
     override fun declination(latitude: Double, longitude: Double, altitudeM: Double, timeMs: Long) = 0f
+}
+
+/** Bitmaps can't be created in JVM tests; records requests and reports the map as unavailable. */
+class FakeMapSnapshotRepository : MapSnapshotRepository {
+    val requests = mutableListOf<Pair<Double, Double>>()
+    override suspend fun snapshot(latitude: Double, longitude: Double): Bitmap? {
+        requests += latitude to longitude
+        return null
+    }
 }
 
 class FakeSettingsRepository(initial: AppSettings = AppSettings()) : SettingsRepository {

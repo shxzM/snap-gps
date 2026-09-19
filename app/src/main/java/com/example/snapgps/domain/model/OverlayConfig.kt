@@ -9,6 +9,8 @@ data class OverlayConfig(
     val showAccuracy: Boolean = true,
     val showSpeed: Boolean = false,
     val showDirection: Boolean = false,
+    /** A small map with a pin at the capture location, drawn beside the text. */
+    val showMap: Boolean = true,
     val position: OverlayPosition = OverlayPosition.BOTTOM_LEFT,
     val opacity: Float = 0.6f
 )

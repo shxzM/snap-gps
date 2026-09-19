@@ -9,27 +9,33 @@ import androidx.exifinterface.media.ExifInterface
 import com.example.snapgps.domain.format.OverlayContentBuilder
 import com.example.snapgps.domain.model.AppSettings
 import com.example.snapgps.domain.model.PhotoMetadata
+import com.example.snapgps.domain.repository.MapSnapshotRepository
 import com.example.snapgps.domain.repository.PhotoProcessor
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import kotlin.math.max
 
 /**
- * decode → orient → burn overlay → encode → EXIF, all off the main thread (TDD §15).
+ * map → decode → orient → burn overlay → encode → EXIF, all off the main thread (TDD §15).
  * Holds at most one full-size bitmap at a time, except briefly while rotating.
  */
 class ImageProcessor(
     private val tempFiles: TempFiles,
     private val renderer: OverlayBitmapRenderer,
-    private val exifWriter: ExifWriter
+    private val exifWriter: ExifWriter,
+    private val mapSnapshots: MapSnapshotRepository
 ) : PhotoProcessor {
 
     override suspend fun process(source: File, metadata: PhotoMetadata, settings: AppSettings): File =
         withContext(Dispatchers.Default) {
             val lines = OverlayContentBuilder.build(metadata, settings)
+            // Fetched before decoding so a slow network never holds the full-size bitmap in memory.
+            val map = loadMap(metadata, settings)
             val orientation = ExifInterface(source)
                 .getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
 
@@ -37,7 +43,7 @@ class ImageProcessor(
             val output = tempFiles.newJpeg("final_")
             try {
                 bitmap = applyOrientation(bitmap, orientation)
-                renderer.draw(Canvas(bitmap), bitmap.width, bitmap.height, lines, settings.overlay)
+                renderer.draw(Canvas(bitmap), bitmap.width, bitmap.height, lines, settings.overlay, map)
                 FileOutputStream(output).use { stream ->
                     if (!bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, stream)) {
                         throw IOException("JPEG encoding failed")
@@ -48,6 +54,7 @@ class ImageProcessor(
                 throw e
             } finally {
                 bitmap.recycle()
+                map?.recycle()
             }
             try {
                 exifWriter.write(output, source, metadata, settings.embedGpsMetadata)
@@ -58,6 +65,21 @@ class ImageProcessor(
             Log.d(TAG, "Photo processed")
             output
         }
+
+    /** The map thumbnail for the exact capture position; usually served from the tile cache. */
+    private suspend fun loadMap(metadata: PhotoMetadata, settings: AppSettings): Bitmap? {
+        val lat = metadata.latitude
+        val lon = metadata.longitude
+        if (!settings.stampLocationOnPhoto || !settings.overlay.showMap || lat == null || lon == null) return null
+        return try {
+            withTimeoutOrNull(MAP_TIMEOUT_MS) { mapSnapshots.snapshot(lat, lon) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Map thumbnail failed", e)
+            null
+        }
+    }
 
     /** Decodes mutable, downsampled so the long edge fits [MAX_EDGE_PX]; halves again on OOM. */
     private fun decode(file: File): Bitmap {
@@ -112,5 +134,6 @@ class ImageProcessor(
         const val MAX_EDGE_PX = 4096
         const val JPEG_QUALITY = 92
         const val MAX_DECODE_ATTEMPTS = 3
+        const val MAP_TIMEOUT_MS = 5_000L
     }
 }

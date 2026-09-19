@@ -1,5 +1,6 @@
 package com.example.snapgps.presentation.camera
 
+import android.graphics.Bitmap
 import com.example.snapgps.domain.format.OverlayLine
 import com.example.snapgps.domain.model.CaptureState
 import com.example.snapgps.domain.model.DistanceUnit
@@ -27,6 +28,8 @@ data class CameraUiState(
     val zoom: ZoomInfo = ZoomInfo(),
     val overlayLines: List<OverlayLine> = emptyList(),
     val overlayConfig: OverlayConfig = OverlayConfig(),
+    /** Map thumbnail with a pin at the current fix, or null while unavailable or disabled. */
+    val overlayMap: Bitmap? = null,
     val distanceUnit: DistanceUnit = DistanceUnit.METRIC,
     val lastPhoto: Photo? = null,
     /** Bumped to force a re-bind after a camera failure. */

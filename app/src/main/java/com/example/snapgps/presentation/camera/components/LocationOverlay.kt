@@ -1,18 +1,24 @@
 package com.example.snapgps.presentation.camera.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
@@ -27,15 +33,16 @@ import com.example.snapgps.domain.model.OverlayPosition
 
 /**
  * Live overlay on the viewfinder. Sized with the same ratios as the bitmap renderer, so it is a
- * scale model of what will be burned into the photo.
+ * scale model of what will be burned into the photo. [map], when given, sits left of the text.
  */
 @Composable
 fun LocationOverlay(
     lines: List<OverlayLine>,
     config: OverlayConfig,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    map: ImageBitmap? = null
 ) {
-    if (lines.isEmpty()) return
+    if (lines.isEmpty() && map == null) return
     BoxWithConstraints(modifier.fillMaxSize()) {
         val base = min(maxWidth, maxHeight)
         val textSize = base * OverlayLayout.TEXT_SIZE_RATIO
@@ -52,7 +59,10 @@ fun LocationOverlay(
             lineHeight = fontSize * OverlayLayout.LINE_SPACING,
             shadow = Shadow(Color.Black.copy(alpha = 0.6f), Offset(0f, 1f), 2f)
         )
-        Column(
+        val padding = textSize * OverlayLayout.PADDING_TO_TEXT
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(padding),
             modifier = Modifier
                 .align(alignment)
                 .padding(base * OverlayLayout.MARGIN_RATIO)
@@ -61,15 +71,28 @@ fun LocationOverlay(
                     Color.Black.copy(alpha = config.opacity.coerceIn(0f, 1f)),
                     RoundedCornerShape(textSize * OverlayLayout.CORNER_TO_TEXT)
                 )
-                .padding(textSize * OverlayLayout.PADDING_TO_TEXT)
+                .padding(padding)
         ) {
-            lines.forEach { line ->
-                val emphasized = line.kind == OverlayLineKind.COORDINATES || line.kind == OverlayLineKind.NO_LOCATION
-                Text(
-                    text = line.text,
-                    style = style,
-                    fontWeight = if (emphasized) FontWeight.Bold else FontWeight.Normal
+            if (map != null) {
+                Image(
+                    bitmap = map,
+                    contentDescription = "Map of the current location",
+                    modifier = Modifier
+                        .size(base * OverlayLayout.MAP_SIZE_RATIO)
+                        .clip(RoundedCornerShape(textSize * OverlayLayout.MAP_CORNER_TO_TEXT))
                 )
+            }
+            if (lines.isNotEmpty()) {
+                Column {
+                    lines.forEach { line ->
+                        val emphasized = line.kind == OverlayLineKind.COORDINATES || line.kind == OverlayLineKind.NO_LOCATION
+                        Text(
+                            text = line.text,
+                            style = style,
+                            fontWeight = if (emphasized) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                }
             }
         }
     }

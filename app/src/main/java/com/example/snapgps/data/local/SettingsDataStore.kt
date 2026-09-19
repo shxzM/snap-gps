@@ -38,6 +38,7 @@ class SettingsDataStore(private val dataStore: DataStore<Preferences>) : Setting
         val showAccuracy = booleanPreferencesKey("overlay_show_accuracy")
         val showSpeed = booleanPreferencesKey("overlay_show_speed")
         val showDirection = booleanPreferencesKey("overlay_show_direction")
+        val showMap = booleanPreferencesKey("overlay_show_map")
         val overlayPosition = stringPreferencesKey("overlay_position")
         val overlayOpacity = floatPreferencesKey("overlay_opacity")
         val coordinateFormat = stringPreferencesKey("coordinate_format")
@@ -67,6 +68,7 @@ class SettingsDataStore(private val dataStore: DataStore<Preferences>) : Setting
                 showAccuracy = prefs[Keys.showAccuracy] ?: o.showAccuracy,
                 showSpeed = prefs[Keys.showSpeed] ?: o.showSpeed,
                 showDirection = prefs[Keys.showDirection] ?: o.showDirection,
+                showMap = prefs[Keys.showMap] ?: o.showMap,
                 position = prefs[Keys.overlayPosition].toEnum(o.position),
                 opacity = prefs[Keys.overlayOpacity] ?: o.opacity
             ),
@@ -95,6 +97,7 @@ class SettingsDataStore(private val dataStore: DataStore<Preferences>) : Setting
         prefs[Keys.showAccuracy] = o.showAccuracy
         prefs[Keys.showSpeed] = o.showSpeed
         prefs[Keys.showDirection] = o.showDirection
+        prefs[Keys.showMap] = o.showMap
         prefs[Keys.overlayPosition] = o.position.name
         prefs[Keys.overlayOpacity] = o.opacity
         prefs[Keys.coordinateFormat] = s.coordinateFormat.name
