@@ -1,0 +1,34 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Kotlin 2.x compiler session data and error logs
+.kotlin/
+
+# Per-user IDE state (device choices, plugin config with a user ID)
+/.idea/deviceManager.xml
+/.idea/deploymentTargetSelector.xml
+/.idea/material_theme_project_new.xml
+
+# Signing keys and credentials — never commit these
+*.jks
+*.keystore
+keystore.properties
+
+# Signed release output from "Generate Signed Bundle / APK"
+/app/release/
+
+# Windows thumbnail cache
+Thumbs.db

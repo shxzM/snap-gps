@@ -1,0 +1,6 @@
+<resources>
+    <!-- Styling is done by the Compose theme; this only covers the window before first frame. -->
+    <style name="Theme.SnapGPS" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+</resources>
