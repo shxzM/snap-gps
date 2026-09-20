@@ -1,7 +1,7 @@
 <resources>
-    <!-- Styling is done by the Compose theme; this only covers the window before first frame. -->
+    <!-- Android 12+ draws its own system splash; point it at the same color. -->
     <style name="Theme.SnapGPS" parent="android:Theme.Material.NoActionBar">
-        <!-- Matches the adaptive icon background so the splash has no visible seam. -->
         <item name="android:windowBackground">@color/ic_launcher_background</item>
+        <item name="android:windowSplashScreenBackground">@color/ic_launcher_background</item>
     </style>
 </resources>
